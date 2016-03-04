@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
+    <!--<link rel="stylesheet" href="synth.css">-->
+    <style>
+      .buffer-display {
+        width: 600px;
+      }
+      .envelope-display {
+        width: 600px;
+      }
+      .buffer-display-cell {
+        padding-right: 10px;
+      }
+      .envelope-display-cell {
+        padding-right: 10px;
+      }
+      .hidden {
+        display: none;
+      }
+      td h4 {
+        margin-bottom: 0px;
+        margin-top: 0px;
+      }
+      td input[type="text"] {
+        width: 50px;
+        text-align: right;
+      }
+      .item {
+        text-align: right;
+        font-size: 0.9em;
+      }
+      .header {
+        border-bottom: 1px solid gray;
+      }
+      .top-margin {
+        padding-top: 8px;
+      }
+      .right-margin {
+        padding-right: 21px;
+      }
+      #play {
+        margin-left: 5px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <table>
+      <tr>
+        <td class="buffer-display-cell" rowspan="11">
+          <div class="buffer-display" id="buffer-display">
+
+          </div>
+        </td>
+        <td class="header"><h4>Frequency and duration</h4></td>
+      </tr>
+      <tr>
+        <td class="item"><span>Frequency:&nbsp;<input type="text" value="440.0" id="fundamental-frequency"></input><span>&nbsp;Hz</span></td>
+      </tr>
+      <tr>
+        <td class="item"><span>Duration:&nbsp;<input type="text" value="1000" id="duration"></input><span>&nbsp;ms</span></td>
+      </tr>
+      <tr>
+        <td class="header top-margin"><h4>Timbre</h4></td>
+      </tr>
+      <tr>
+        <td class="item"><span>1<sup>st</sup>&nbsp;harmonic:&nbsp;<input type="text" value="1.0" id="first-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>2<sup>nd</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="second-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>3<sup>rd</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="third-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>4<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="fourth-harmonic"></input></td>
+      </tr>
+        <td class="item"><span>5<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="fifth-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>6<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="sixth-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>7<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="seventh-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="envelope-display-cell" rowspan="11">
+          <div class="envelope-display" id="envelope-display">
+
+          </div>
+        </td>
+        <td class="item"><span>8<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="eighth-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>9<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="ninth-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>10<sup>th</sup>&nbsp;harmonic:&nbsp;<input type="text" value="0.0" id="tenth-harmonic"></input></td>
+      </tr>
+      <tr>
+        <td class="header top-margin"><h4>Acoustic Envelope</h4></td>
+      </tr>
+      <tr>
+        <td class="item"><span>Attack time:&nbsp;</span><input type="text" value="100" id="attack-time"></input><span>&nbsp;ms</span></td>
+      </tr>
+      <tr>
+        <td class="item"><span>Decay time:&nbsp;</span><input type="text" value="25" id="decay-time"></input><span>&nbsp;ms</span></td>
+      </tr>
+      <tr>
+        <td class="item right-margin"><span>Sustain level:&nbsp;</span><input type="text" value="0.4" id="sustain-level"></input></td>
+      </tr>
+      <tr>
+        <td class="item"><span>Release time:&nbsp;</span><input type="text" value="50" id="release-time"></input><span>&nbsp;ms</span></td>
+      </tr>
+      <tr>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td><button id="generate">Generate</button><button id="play" class="hidden">Play</button></td>
+      </tr>
+  </body>
+     <script>
+        var audioCtx, channels, frameCount, myArrayBuffer, attackTime, decayTime, sustainTime, sustainLevel, releaseTime, duration;
+        var w, fh, sh, th, foh, fih, sih, seh, eh, nh, teh;
+        
+        function zip(arrays) {
+            return arrays[0].map(function(_,i){
+                return arrays.map(function(array){return array[i]})
+            });
+        }
+
+        function synthesisFunction(t) {
+            return fh * Math.sin(w * t) + sh * Math.sin(2 * w * t) + th * Math.sin(3 * w * t) +
+                    foh * Math.sin(4 * w * t) + fih * Math.sin(5 * w * t) + sih * Math.sin(6 * w * t) +
+                    seh * Math.sin(7 * w * t) + eh * Math.sin(8 * w * t) + nh * Math.sin(9 * w * t) +
+                    teh * Math.sin(10 * w * t);
+        }
+
+        function envelopeFunction(t) {
+            if(t < 0) {return 0;}
+            else if(t <= attackTime) {return t/attackTime;}
+            else if(t <= (attackTime + decayTime)) {return ((sustainLevel - 1)/(decayTime))*(t - attackTime) + 1;}
+            else if(t <= (attackTime + decayTime + sustainTime)) {return sustainLevel;}
+            else if(t <= (attackTime + decayTime + sustainTime + releaseTime)) {return ((-1 * sustainLevel)/releaseTime) * (t - attackTime - decayTime - sustainTime - releaseTime);}
+            else {return 0;}
+        }
+
+        function secondsFromSamples(n) {
+            return (1.0 * n)/(1.0 * audioCtx.sampleRate);
+        }
+
+        function getMaxOfArray(numArray) {
+            return Math.max.apply(null, numArray);
+        }
+        
+        jQuery(document).ready(function() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // Stereo
+            channels = 2;
+            jQuery("#generate").click(function() {
+                w = 2*Math.PI*parseFloat(jQuery("#fundamental-frequency").val());
+                duration = parseFloat(jQuery("#duration").val())/1000.0;
+                fh = parseFloat(jQuery("#first-harmonic").val());
+                sh = parseFloat(jQuery("#second-harmonic").val());
+                th = parseFloat(jQuery("#third-harmonic").val());
+                foh = parseFloat(jQuery("#fourth-harmonic").val());
+                fih = parseFloat(jQuery("#fifth-harmonic").val());
+                sih = parseFloat(jQuery("#sixth-harmonic").val());
+                seh = parseFloat(jQuery("#seventh-harmonic").val());
+                eh = parseFloat(jQuery("#eighth-harmonic").val());
+                nh = parseFloat(jQuery("#ninth-harmonic").val());
+                teh = parseFloat(jQuery("#tenth-harmonic").val());
+
+                // Create an empty stereo buffer at the
+                // sample rate of the AudioContext
+                frameCount = audioCtx.sampleRate * duration;
+                attackTime = parseFloat(jQuery("#attack-time").val()) / 1000.0;
+                decayTime = parseFloat(jQuery("#decay-time").val()) / 1000.0;
+                releaseTime = parseFloat(jQuery("#release-time").val()) / 1000.0;
+                sustainTime = duration - .01 - attackTime - decayTime - releaseTime;
+                sustainLevel = parseFloat(jQuery("#sustain-level").val());
+                
+                myArrayBuffer = audioCtx.createBuffer(channels, frameCount, audioCtx.sampleRate);
+          
+                // This gives us the actual array that contains the data
+                var LchannelBuffer = myArrayBuffer.getChannelData(0);
+                var RchannelBuffer = myArrayBuffer.getChannelData(1);           
+                var times = [];
+                var envelopeBuffer = [];
+
+                for (var i = 0; i < frameCount; i++) {
+                    var s = secondsFromSamples(i);
+                    var env = envelopeFunction(s);
+                    times.push(s);
+                    envelopeBuffer.push(env);
+                    LchannelBuffer[i] = env * synthesisFunction(s);
+                    RchannelBuffer[i] = LchannelBuffer[i];
+                }
+
+                var normalizingFactor = 0.8 / getMaxOfArray(LchannelBuffer);
+
+                for (i=0; i < frameCount; i++) {
+                    LchannelBuffer[i] = normalizingFactor * LchannelBuffer[i];
+                    RchannelBuffer[i] = LchannelBuffer[i];
+                }
+                
+                g = new Dygraph(document.getElementById("buffer-display"),
+                        zip([times, LchannelBuffer]), 
+                        {
+                             // options go here. See http://dygraphs.com/options.html
+                             labels: ["t", "y"],
+                             animatedZooms: true,
+                             title: 'Audio buffer'
+                         });
+                
+                eg = new Dygraph(document.getElementById("envelope-display"),
+                        zip([times, envelopeBuffer]), 
+                        {
+                             // options go here. See http://dygraphs.com/options.html
+                             labels: ["t", "y"],
+                             animatedZooms: true,
+                             title: 'Acoustic envelope'
+                         });
+                
+                jQuery('#play').removeClass('hidden');
+            });
+
+            jQuery('#play').click(function() {
+                // Get an AudioBufferSourceNode.
+                // This is the AudioNode to use when we want to play an AudioBuffer
+                var source = audioCtx.createBufferSource();
+                // set the buffer in the AudioBufferSourceNode
+                source.buffer = myArrayBuffer;
+                // connect the AudioBufferSourceNode to the
+                // destination so we can hear the sound
+                source.connect(audioCtx.destination);
+                // start the source playing
+                source.start();
+            });
+        });
+     </script>
+</html>
